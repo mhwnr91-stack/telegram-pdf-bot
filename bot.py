@@ -1,8 +1,15 @@
-from telegram.ext import Updater, MessageHandler, Filters
-import fitz  # PyMuPDF
 import os
+import fitz  # PyMuPDF
+from flask import Flask, request
+from telegram import Bot, Update
+from telegram.ext import Dispatcher, MessageHandler, Filters
 
-BOT_TOKEN = os.environ["BOT_TOKEN"]
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+bot = Bot(token=BOT_TOKEN)
+
+app = Flask(__name__)
+dispatcher = Dispatcher(bot, None, workers=0)
 
 def merge_pdf(update, context):
     file = update.message.document.get_file()
@@ -35,15 +42,19 @@ def merge_pdf(update, context):
     os.remove(input_pdf)
     os.remove(output_pdf)
 
-def main():
-    updater = Updater(BOT_TOKEN, use_context=True)
-    dp = updater.dispatcher
+dispatcher.add_handler(
+    MessageHandler(Filters.document.mime_type("application/pdf"), merge_pdf)
+)
 
-    dp.add_handler(MessageHandler(Filters.document.mime_type("application/pdf"), merge_pdf))
+@app.route("/", methods=["GET"])
+def index():
+    return "Bot is running"
 
-    updater.start_polling()
-    updater.idle()
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), bot)
+    dispatcher.process_update(update)
+    return "OK"
 
 if __name__ == "__main__":
-
-    main()
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
