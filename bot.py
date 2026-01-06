@@ -1,5 +1,6 @@
 import os
 import fitz  # PyMuPDF
+
 from flask import Flask, request
 from telegram import Bot, Update
 from telegram.ext import Dispatcher, MessageHandler, Filters
@@ -7,12 +8,14 @@ from telegram.ext import Dispatcher, MessageHandler, Filters
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 bot = Bot(token=BOT_TOKEN)
+app = Flask(name)
 
-app = Flask(__name__)
-dispatcher = Dispatcher(bot, None, workers=0)
+dispatcher = Dispatcher(bot, None, workers=0, use_context=True)
+
 
 def merge_pdf(update, context):
     file = update.message.document.get_file()
+
     input_pdf = "input.pdf"
     output_pdf = "A4_2slides.pdf"
 
@@ -42,13 +45,16 @@ def merge_pdf(update, context):
     os.remove(input_pdf)
     os.remove(output_pdf)
 
+
 dispatcher.add_handler(
     MessageHandler(Filters.document.mime_type("application/pdf"), merge_pdf)
 )
 
+
 @app.route("/", methods=["GET"])
 def index():
     return "Bot is running"
+
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -56,5 +62,6 @@ def webhook():
     dispatcher.process_update(update)
     return "OK"
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+if name == "main":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
